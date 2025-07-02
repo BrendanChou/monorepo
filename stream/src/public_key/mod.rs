@@ -1,15 +1,9 @@
 //! Communicate with an authenticated peer over an encrypted connection.
 //!
-//! Provides encrypted communication with peers identified by developer-specified
-//! cryptographic identities (e.g., BLS, ed25519, etc.).
-//! Implements its own encrypted transport layer (no TLS, no X.509 certificates,
-//! no protocol negotiation) that exclusively uses these cryptographic identities
-//! to authenticate incoming connections. Uses ChaCha20-Poly1305 for message encryption.
-//!
-//! # Purpose and Domain
-//!
-//! This protocol provides authenticated and encrypted communication between peers with
-//! pre-established cryptographic identities. Key properties:
+//! This crate implements a lightweight, self-contained transport layer—no TLS, X.509, or
+//! cipher negotiation—that authenticates peers by developer-defined public keys and
+//! encrypts all traffic with ChaCha20-Poly1305. It is intended for systems where peers
+//! already know each other's identities. Key properties:
 //!
 //! - **Mutual authentication** via static public keys and signatures
 //! - **Encrypted traffic** (ChaCha20-Poly1305) with forward secrecy (ephemeral X25519)
