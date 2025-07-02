@@ -1,20 +1,4 @@
 //! Operations over handshake messages.
-//!
-//! ## Security Notice
-//!
-//! This handshake protocol transmits peer identities in **plaintext** during the initial
-//! exchange. This design choice has important implications:
-//!
-//! - **No identity hiding**: Network observers can see which peers are communicating
-//! - **Connection linkability**: Multiple connections from the same peer are linkable
-//! - **Traffic analysis**: Adversaries can build communication graphs
-//!
-//! This is intentional for use cases where:
-//! - Peer identities are public information (e.g., known validator sets)
-//! - Simplified protocol design is preferred over metadata privacy
-//! - Connection establishment speed is prioritized
-//!
-//! If identity hiding is required, use a different protocol or add an outer privacy layer.
 
 use super::{x25519, AUTHENTICATION_TAG_LENGTH};
 use crate::Error;
@@ -91,10 +75,6 @@ impl<P: PublicKey> EncodeSize for Info<P> {
 ///
 /// Allows recipient to verify that the sender has the private key
 /// of public key before sending any data.
-///
-/// **Security Note**: This message is sent in PLAINTEXT during the handshake.
-/// Both the sender's identity (`signer`) and the recipient's expected identity
-/// are visible to network observers. This provides no identity hiding.
 ///
 /// By requiring the server to have their public key signed, they prevent
 /// a malicious peer from forwarding a handshake message from a previous

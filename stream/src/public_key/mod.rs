@@ -17,12 +17,23 @@
 //! - **Message integrity is critical**: Messages must be protected from tampering
 //! - **Low protocol overhead is desired**: No certificate chains or protocol negotiation
 //!
+//! ## Key Characteristics
+//!
+//! - ✅ **Mutual authentication** with pre-shared identities
+//! - ✅ **Encrypted communication** using ChaCha20-Poly1305
+//! - ✅ **Forward secrecy** via ephemeral keys
+//! - ✅ **Replay protection** with timestamps and nonces
+//! - ❌ **No identity hiding** - peer identities visible to network observers
+//! - ❌ **No multiplexing** - one connection per peer
+//! - ❌ **No automatic reconnection** - handle at application layer
+//!
 //! ## Suitable Use Cases
 //!
 //! - **Peer-to-peer networks**: Where nodes maintain long-lived connections with known peers
 //! - **Private distributed systems**: Where all participants are pre-authorized
 //! - **Microservice communication**: Within a trusted network boundary
 //! - **IoT device networks**: Where devices have embedded cryptographic identities
+//! - **Systems where connection metadata is not sensitive**
 //!
 //! ## Unsuitable Use Cases
 //!
@@ -30,6 +41,7 @@
 //! - **Public web services**: Use TLS/HTTPS instead
 //! - **Consensus protocols**: May have unnecessary encryption overhead (see below)
 //! - **High-frequency trading**: Encryption adds ~20-50μs latency per message
+//! - **Browser compatibility needed**: Use WebRTC or TLS-based protocols
 //!
 //! # Protocol Assumptions and Limitations
 //!
@@ -42,10 +54,30 @@
 //! - **Trusted first connection**: No protection against active MITM on first connection
 //!   (unlike TLS with certificate authorities)
 //!
+//! ## Identity Exposure Warning
+//!
+//! During handshake, both peers send their public keys **in plaintext**. This means:
+//! - Network observers can build a connection graph
+//! - Peer identities are linkable across connections
+//! - No protection against targeted traffic analysis
+//! - Both the sender's identity and the recipient's expected identity are visible
+//!
+//! This is acceptable when:
+//! - The network topology is public anyway
+//! - Peers have static, long-lived identities
+//! - Regulatory compliance requires identity visibility
+//! - Peer identities are public information (e.g., known validator sets)
+//!
+//! This is NOT acceptable when:
+//! - Anonymous communication is required
+//! - Peer identities should be unlinkable
+//! - Protection against metadata analysis is needed
+//!
 //! ## Performance Considerations
 //!
-//! - **Encryption overhead**: Each message has 16-byte authentication tag overhead
+//! - **Bandwidth overhead**: 16-byte authentication tag per message
 //! - **CPU cost**: ChaCha20-Poly1305 encryption/decryption for every message
+//! - **Latency impact**: ~20-50μs encryption/decryption overhead per message
 //! - **Handshake latency**: 3-RTT handshake before data can be exchanged
 //! - **No multiplexing**: One connection per peer pair (no stream multiplexing)
 //!
@@ -64,24 +96,20 @@
 //! - Simplifies the protocol (no negotiation of encryption on/off)
 //! - Future-proofs against evolving privacy requirements
 //!
-//! For authentication-only use cases, consider using signed messages over plain TCP instead.
+//! For authentication-only use cases, consider using signed messages over plain TCP instead:
 //!
-//! ### Identity Exposure
-//!
-//! During handshake, both peers send their public keys in plaintext. This means:
-//! - Network observers can build a connection graph
-//! - Peer identities are linkable across connections
-//! - No protection against targeted traffic analysis
-//!
-//! This is acceptable when:
-//! - The network topology is public anyway
-//! - Peers have static, long-lived identities
-//! - Regulatory compliance requires identity visibility
-//!
-//! This is NOT acceptable when:
-//! - Anonymous communication is required
-//! - Peer identities should be unlinkable
-//! - Protection against metadata analysis is needed
+//! ```ignore
+//! // Simple authentication-only approach for consensus protocols
+//! struct SignedMessage<T> {
+//!     payload: T,
+//!     sender: PublicKey,
+//!     signature: Signature,
+//!     nonce: u64,  // For replay protection
+//! }
+//! 
+//! // Send over plain TCP
+//! tcp_stream.send(&signed_msg)?;
+//! ```
 //!
 //! # Design
 //!
@@ -188,6 +216,17 @@
 //! - **Keep-alive**: Not implemented; use application-level heartbeats if needed
 //! - **Reconnection**: Not automatic; implement at application layer if required
 //! - **Connection Pooling**: One connection per peer; no built-in pooling
+//!
+//! ## Configuration Requirements
+//!
+//! All peers must use identical configuration parameters:
+//! - `namespace`: Application-specific message prefix (prevents cross-protocol attacks)
+//! - `max_message_size`: DoS protection limit
+//! - `synchrony_bound`: Maximum acceptable clock skew
+//! - `max_handshake_age`: Replay protection window
+//! - `handshake_timeout`: DoS protection timeout
+//!
+//! Mismatched configurations will cause connection failures.
 
 use chacha20poly1305::{
     aead::{generic_array::typenum::Unsigned, AeadCore},
