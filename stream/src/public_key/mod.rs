@@ -11,10 +11,11 @@
 //! This protocol provides authenticated and encrypted communication between peers with
 //! pre-established cryptographic identities. Key properties:
 //!
-//! - **No identity hiding**: Peer identities transmitted in plaintext during handshake
-//! - **Fixed protocol**: No cipher negotiation, one connection per peer
-//! - **Always encrypted**: No option for authentication-only mode
-//! - **Performance cost**: ~20-50μs latency per message, 16-byte overhead
+//! - **Mutual authentication** via static public keys and signatures
+//! - **Encrypted traffic** (ChaCha20-Poly1305) with forward secrecy (ephemeral X25519)
+//! - **No identity hiding**: peer public keys sent in plaintext
+//! - **Fixed protocol**: no cipher negotiation, one connection per peer
+//! - **Lightweight**: ~20-50 µs per message, 16-byte overhead
 //!
 //! # Security Assumptions
 //!
