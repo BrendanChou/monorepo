@@ -9,84 +9,19 @@
 //! # Purpose and Domain
 //!
 //! This protocol provides authenticated and encrypted communication between peers with
-//! pre-established cryptographic identities. It prioritizes simplicity and low overhead
-//! over flexibility and privacy.
+//! pre-established cryptographic identities. Key properties:
 //!
-//! ## Key Properties
+//! - **No identity hiding**: Peer identities transmitted in plaintext during handshake
+//! - **Fixed protocol**: No cipher negotiation, one connection per peer
+//! - **Always encrypted**: No option for authentication-only mode
+//! - **Performance cost**: ~20-50μs latency per message, 16-byte overhead
 //!
-//! - **Mutual authentication** using cryptographic signatures
-//! - **Encrypted channels** with forward secrecy
-//! - **No identity hiding**: peer identities are visible to network observers
-//! - **No protocol negotiation**: fixed cipher suite and handshake
-//! - **One connection per peer**: no multiplexing or automatic reconnection
+//! # Security Assumptions
 //!
-//! ## When to Use
-//!
-//! - Private peer-to-peer networks with known participants
-//! - Microservices within a secure perimeter
-//! - Systems where peer identities are already public
-//!
-//! ## When NOT to Use
-//!
-//! - **Anonymous communication**: This protocol exposes peer identities
-//! - **Public web services**: Use TLS instead
-//! - **Consensus protocols**: Encryption may be unnecessary overhead when messages are public
-//! - **Ultra-low latency**: Adds 20-50μs per message
-//!
-//! # Protocol Assumptions and Limitations
-//!
-//! ## Security Assumptions
-//!
-//! - **No identity hiding**: Peer identities are transmitted in plaintext during handshake.
-//!   An eavesdropper can determine which peers are communicating.
-//! - **Pre-shared namespace**: The namespace parameter must be agreed upon out-of-band
-//! - **Time synchronization**: Peers must have reasonably synchronized clocks (within `synchrony_bound`)
-//! - **Trusted first connection**: No protection against active MITM on first connection
-//!   (unlike TLS with certificate authorities)
-//!
-//! ## Identity Exposure Warning
-//!
-//! During handshake, both peers send their public keys **in plaintext**. This means:
-//! - Network observers can build a connection graph
-//! - Peer identities are linkable across connections
-//! - No protection against targeted traffic analysis
-//! - Both the sender's identity and the recipient's expected identity are visible
-//!
-//! This is acceptable when:
-//! - The network topology is public anyway
-//! - Peers have static, long-lived identities
-//! - Regulatory compliance requires identity visibility
-//! - Peer identities are public information (e.g., known validator sets)
-//!
-//! This is NOT acceptable when:
-//! - Anonymous communication is required
-//! - Peer identities should be unlinkable
-//! - Protection against metadata analysis is needed
-//!
-//! ## Performance Considerations
-//!
-//! - **Bandwidth overhead**: 16-byte authentication tag per message
-//! - **CPU cost**: ChaCha20-Poly1305 encryption/decryption for every message
-//! - **Latency impact**: ~20-50μs encryption/decryption overhead per message
-//! - **Handshake latency**: 3-RTT handshake before data can be exchanged
-//! - **No multiplexing**: One connection per peer pair (no stream multiplexing)
-//!
-//! ## Design Trade-offs
-//!
-//! ### Why Not Just Authentication?
-//!
-//! Some use cases (e.g., consensus protocols) only need authenticated channels since:
-//! - Messages are often public anyway (e.g., blocks, votes)
-//! - Encryption adds unnecessary CPU overhead
-//! - Lower latency is more important than confidentiality
-//!
-//! However, this protocol always encrypts because:
-//! - Prevents selective message dropping by intermediaries
-//! - Protects against traffic analysis
-//! - Simplifies the protocol (no negotiation of encryption on/off)
-//! - Future-proofs against evolving privacy requirements
-//!
-//! For authentication-only use cases, consider using signed messages over plain TCP instead.
+//! - **Pre-shared namespace**: Must be agreed upon out-of-band
+//! - **Time synchronization**: Clocks must be synchronized within `synchrony_bound`
+//! - **Public identities**: Network observers can see who is communicating
+//! - **No PKI**: Unlike TLS, no certificate authority protection
 //!
 //! # Design
 //!
@@ -151,25 +86,6 @@
 //!
 //! This prevents nonce reuse (which would compromise message confidentiality)
 //! and saves bandwidth (as there is no need to transmit nonces alongside encrypted messages).
-//!
-//! # Implementation Notes
-//!
-//! - **Thread Safety**: Connection splitting allows concurrent send/receive
-//! - **Backpressure**: Implemented at the stream level, not in this protocol
-//! - **Keep-alive**: Not implemented; use application-level heartbeats if needed
-//! - **Reconnection**: Not automatic; implement at application layer if required
-//! - **Connection Pooling**: One connection per peer; no built-in pooling
-//!
-//! ## Configuration Requirements
-//!
-//! All peers must use identical configuration parameters:
-//! - `namespace`: Application-specific message prefix (prevents cross-protocol attacks)
-//! - `max_message_size`: DoS protection limit
-//! - `synchrony_bound`: Maximum acceptable clock skew
-//! - `max_handshake_age`: Replay protection window
-//! - `handshake_timeout`: DoS protection timeout
-//!
-//! Mismatched configurations will cause connection failures.
 
 use chacha20poly1305::{
     aead::{generic_array::typenum::Unsigned, AeadCore},
