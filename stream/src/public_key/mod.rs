@@ -6,6 +6,83 @@
 //! no protocol negotiation) that exclusively uses these cryptographic identities
 //! to authenticate incoming connections. Uses ChaCha20-Poly1305 for message encryption.
 //!
+//! # Purpose and Domain
+//!
+//! This protocol is designed for authenticated and encrypted communication between
+//! peers in distributed systems where:
+//!
+//! - **Known peer identities**: All participants have pre-established cryptographic identities
+//! - **Mutual authentication is required**: Both parties must prove their identity
+//! - **Message confidentiality is needed**: Communications should be protected from eavesdropping
+//! - **Message integrity is critical**: Messages must be protected from tampering
+//! - **Low protocol overhead is desired**: No certificate chains or protocol negotiation
+//!
+//! ## Suitable Use Cases
+//!
+//! - **Peer-to-peer networks**: Where nodes maintain long-lived connections with known peers
+//! - **Private distributed systems**: Where all participants are pre-authorized
+//! - **Microservice communication**: Within a trusted network boundary
+//! - **IoT device networks**: Where devices have embedded cryptographic identities
+//!
+//! ## Unsuitable Use Cases
+//!
+//! - **Anonymous communication**: This protocol provides NO identity hiding
+//! - **Public web services**: Use TLS/HTTPS instead
+//! - **Consensus protocols**: May have unnecessary encryption overhead (see below)
+//! - **High-frequency trading**: Encryption adds ~20-50μs latency per message
+//!
+//! # Protocol Assumptions and Limitations
+//!
+//! ## Security Assumptions
+//!
+//! - **No identity hiding**: Peer identities are transmitted in plaintext during handshake.
+//!   An eavesdropper can determine which peers are communicating.
+//! - **Pre-shared namespace**: The namespace parameter must be agreed upon out-of-band
+//! - **Time synchronization**: Peers must have reasonably synchronized clocks (within `synchrony_bound`)
+//! - **Trusted first connection**: No protection against active MITM on first connection
+//!   (unlike TLS with certificate authorities)
+//!
+//! ## Performance Considerations
+//!
+//! - **Encryption overhead**: Each message has 16-byte authentication tag overhead
+//! - **CPU cost**: ChaCha20-Poly1305 encryption/decryption for every message
+//! - **Handshake latency**: 3-RTT handshake before data can be exchanged
+//! - **No multiplexing**: One connection per peer pair (no stream multiplexing)
+//!
+//! ## Design Trade-offs
+//!
+//! ### Why Not Just Authentication?
+//!
+//! Some use cases (e.g., consensus protocols) only need authenticated channels since:
+//! - Messages are often public anyway (e.g., blocks, votes)
+//! - Encryption adds unnecessary CPU overhead
+//! - Lower latency is more important than confidentiality
+//!
+//! However, this protocol always encrypts because:
+//! - Prevents selective message dropping by intermediaries
+//! - Protects against traffic analysis
+//! - Simplifies the protocol (no negotiation of encryption on/off)
+//! - Future-proofs against evolving privacy requirements
+//!
+//! For authentication-only use cases, consider using signed messages over plain TCP instead.
+//!
+//! ### Identity Exposure
+//!
+//! During handshake, both peers send their public keys in plaintext. This means:
+//! - Network observers can build a connection graph
+//! - Peer identities are linkable across connections
+//! - No protection against targeted traffic analysis
+//!
+//! This is acceptable when:
+//! - The network topology is public anyway
+//! - Peers have static, long-lived identities
+//! - Regulatory compliance requires identity visibility
+//!
+//! This is NOT acceptable when:
+//! - Anonymous communication is required
+//! - Peer identities should be unlinkable
+//! - Protection against metadata analysis is needed
+//!
 //! # Design
 //!
 //! ## Handshake
@@ -69,6 +146,48 @@
 //!
 //! This prevents nonce reuse (which would compromise message confidentiality)
 //! and saves bandwidth (as there is no need to transmit nonces alongside encrypted messages).
+//!
+//! # Alternative Approaches
+//!
+//! Depending on your specific requirements, consider these alternatives:
+//!
+//! ## For Consensus Protocols
+//!
+//! If you only need authenticated channels (common in consensus protocols):
+//! ```ignore
+//! // Option 1: Sign each message individually
+//! let signed_msg = crypto.sign(&msg);
+//! tcp_stream.send(&signed_msg);
+//!
+//! // Option 2: Use HMAC with a shared key derived from DH
+//! let mac = hmac_sha256(&shared_key, &msg);
+//! tcp_stream.send(&(msg, mac));
+//! ```
+//!
+//! ## For Anonymous Communication
+//!
+//! If identity hiding is required:
+//! - Use Tor or I2P for network-layer anonymity
+//! - Implement a protocol with ephemeral identities
+//! - Consider noise protocol framework with XX or IK patterns
+//!
+//! ## For Public Services
+//!
+//! If you need:
+//! - Web browser compatibility
+//! - Certificate authority trust model  
+//! - Protocol negotiation (ALPN)
+//! - Standard compliance
+//!
+//! Use TLS 1.3 with QUIC or HTTP/3 instead.
+//!
+//! # Implementation Notes
+//!
+//! - **Thread Safety**: Connection splitting allows concurrent send/receive
+//! - **Backpressure**: Implemented at the stream level, not in this protocol
+//! - **Keep-alive**: Not implemented; use application-level heartbeats if needed
+//! - **Reconnection**: Not automatic; implement at application layer if required
+//! - **Connection Pooling**: One connection per peer; no built-in pooling
 
 use chacha20poly1305::{
     aead::{generic_array::typenum::Unsigned, AeadCore},

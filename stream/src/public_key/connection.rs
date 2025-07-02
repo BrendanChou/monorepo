@@ -1,3 +1,40 @@
+//! Connection management for authenticated and encrypted peer communication.
+//!
+//! ## When to Use This Module
+//!
+//! Use this when you need:
+//! - Mutual authentication with pre-shared identities
+//! - Message confidentiality (encryption)
+//! - Message integrity and authenticity
+//! - Protection against replay attacks
+//! - Forward secrecy for session keys
+//!
+//! ## When NOT to Use This Module
+//!
+//! Consider alternatives when:
+//! - **Consensus protocols**: If messages are public anyway (blocks, votes),
+//!   encryption adds unnecessary overhead. Use signed messages over plain TCP.
+//! - **Identity hiding required**: This protocol exposes peer identities.
+//!   Use Tor, I2P, or protocols designed for anonymity.
+//! - **Browser compatibility needed**: Use WebRTC or TLS-based protocols.
+//! - **Minimal latency critical**: Encryption adds 20-50μs per message.
+//!   Consider authentication-only approaches.
+//!
+//! ## Example: Authentication-Only Alternative
+//!
+//! For consensus protocols that only need authentication:
+//! ```ignore
+//! // Instead of this encrypted connection, use:
+//! struct AuthenticatedMessage<T> {
+//!     payload: T,
+//!     sender: PublicKey,
+//!     signature: Signature,
+//! }
+//! 
+//! // Send over plain TCP/UDP
+//! tcp_stream.send(&authenticated_msg)?;
+//! ```
+
 use super::{
     cipher,
     handshake::{self, Confirmation},
