@@ -8,40 +8,30 @@
 //!
 //! # Purpose and Domain
 //!
-//! This protocol is designed for authenticated and encrypted communication between
-//! peers in distributed systems where:
+//! This protocol provides authenticated and encrypted communication between peers with
+//! pre-established cryptographic identities. It prioritizes simplicity and low overhead
+//! over flexibility and privacy.
 //!
-//! - **Known peer identities**: All participants have pre-established cryptographic identities
-//! - **Mutual authentication is required**: Both parties must prove their identity
-//! - **Message confidentiality is needed**: Communications should be protected from eavesdropping
-//! - **Message integrity is critical**: Messages must be protected from tampering
-//! - **Low protocol overhead is desired**: No certificate chains or protocol negotiation
+//! ## Key Properties
 //!
-//! ## Key Characteristics
+//! - **Mutual authentication** using cryptographic signatures
+//! - **Encrypted channels** with forward secrecy
+//! - **No identity hiding**: peer identities are visible to network observers
+//! - **No protocol negotiation**: fixed cipher suite and handshake
+//! - **One connection per peer**: no multiplexing or automatic reconnection
 //!
-//! - ✅ **Mutual authentication** with pre-shared identities
-//! - ✅ **Encrypted communication** using ChaCha20-Poly1305
-//! - ✅ **Forward secrecy** via ephemeral keys
-//! - ✅ **Replay protection** with timestamps and nonces
-//! - ❌ **No identity hiding** - peer identities visible to network observers
-//! - ❌ **No multiplexing** - one connection per peer
-//! - ❌ **No automatic reconnection** - handle at application layer
+//! ## When to Use
 //!
-//! ## Suitable Use Cases
+//! - Private peer-to-peer networks with known participants
+//! - Microservices within a secure perimeter
+//! - Systems where peer identities are already public
 //!
-//! - **Peer-to-peer networks**: Where nodes maintain long-lived connections with known peers
-//! - **Private distributed systems**: Where all participants are pre-authorized
-//! - **Microservice communication**: Within a trusted network boundary
-//! - **IoT device networks**: Where devices have embedded cryptographic identities
-//! - **Systems where connection metadata is not sensitive**
+//! ## When NOT to Use
 //!
-//! ## Unsuitable Use Cases
-//!
-//! - **Anonymous communication**: This protocol provides NO identity hiding
-//! - **Public web services**: Use TLS/HTTPS instead
-//! - **Consensus protocols**: May have unnecessary encryption overhead (see below)
-//! - **High-frequency trading**: Encryption adds ~20-50μs latency per message
-//! - **Browser compatibility needed**: Use WebRTC or TLS-based protocols
+//! - **Anonymous communication**: This protocol exposes peer identities
+//! - **Public web services**: Use TLS instead
+//! - **Consensus protocols**: Encryption may be unnecessary overhead when messages are public
+//! - **Ultra-low latency**: Adds 20-50μs per message
 //!
 //! # Protocol Assumptions and Limitations
 //!
@@ -96,20 +86,7 @@
 //! - Simplifies the protocol (no negotiation of encryption on/off)
 //! - Future-proofs against evolving privacy requirements
 //!
-//! For authentication-only use cases, consider using signed messages over plain TCP instead:
-//!
-//! ```ignore
-//! // Simple authentication-only approach for consensus protocols
-//! struct SignedMessage<T> {
-//!     payload: T,
-//!     sender: PublicKey,
-//!     signature: Signature,
-//!     nonce: u64,  // For replay protection
-//! }
-//! 
-//! // Send over plain TCP
-//! tcp_stream.send(&signed_msg)?;
-//! ```
+//! For authentication-only use cases, consider using signed messages over plain TCP instead.
 //!
 //! # Design
 //!
@@ -174,40 +151,6 @@
 //!
 //! This prevents nonce reuse (which would compromise message confidentiality)
 //! and saves bandwidth (as there is no need to transmit nonces alongside encrypted messages).
-//!
-//! # Alternative Approaches
-//!
-//! Depending on your specific requirements, consider these alternatives:
-//!
-//! ## For Consensus Protocols
-//!
-//! If you only need authenticated channels (common in consensus protocols):
-//! ```ignore
-//! // Option 1: Sign each message individually
-//! let signed_msg = crypto.sign(&msg);
-//! tcp_stream.send(&signed_msg);
-//!
-//! // Option 2: Use HMAC with a shared key derived from DH
-//! let mac = hmac_sha256(&shared_key, &msg);
-//! tcp_stream.send(&(msg, mac));
-//! ```
-//!
-//! ## For Anonymous Communication
-//!
-//! If identity hiding is required:
-//! - Use Tor or I2P for network-layer anonymity
-//! - Implement a protocol with ephemeral identities
-//! - Consider noise protocol framework with XX or IK patterns
-//!
-//! ## For Public Services
-//!
-//! If you need:
-//! - Web browser compatibility
-//! - Certificate authority trust model  
-//! - Protocol negotiation (ALPN)
-//! - Standard compliance
-//!
-//! Use TLS 1.3 with QUIC or HTTP/3 instead.
 //!
 //! # Implementation Notes
 //!
