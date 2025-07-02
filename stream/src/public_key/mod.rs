@@ -3,10 +3,8 @@
 //! # Introduction
 //!
 //! Lightweight, self-contained transport layer for systems where peers already know
-//! one another's public keys. The protocol authenticates each endpoint with
-//! signatures and encrypts all traffic with ChaCha20-Poly1305, providing forward
-//! secrecy through ephemeral X25519 keys. No TLS, X.509, or cipher negotiation is
-//! required.
+//! one another's cryptographic identities. Provides mutual authentication and encrypted
+//! communication without requiring TLS, X.509 certificates, or protocol negotiation.
 //!
 //! ## Key properties
 //!
