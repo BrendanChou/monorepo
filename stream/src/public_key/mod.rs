@@ -1,9 +1,14 @@
 //! Communicate with an authenticated peer over an encrypted connection.
 //!
-//! This crate implements a lightweight, self-contained transport layer—no TLS, X.509, or
-//! cipher negotiation—that authenticates peers by developer-defined public keys and
-//! encrypts all traffic with ChaCha20-Poly1305. It is intended for systems where peers
-//! already know each other's identities. Key properties:
+//! # Introduction
+//!
+//! Lightweight, self-contained transport layer for systems where peers already know
+//! one another's public keys. The protocol authenticates each endpoint with
+//! signatures and encrypts all traffic with ChaCha20-Poly1305, providing forward
+//! secrecy through ephemeral X25519 keys. No TLS, X.509, or cipher negotiation is
+//! required.
+//!
+//! ## Key properties
 //!
 //! - **Mutual authentication** via static public keys and signatures
 //! - **Encrypted traffic** (ChaCha20-Poly1305) with forward secrecy (ephemeral X25519)
