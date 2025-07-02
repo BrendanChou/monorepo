@@ -16,7 +16,6 @@
 //! - **Pre-shared namespace**: Must be agreed upon out-of-band
 //! - **Time synchronization**: Clocks must be synchronized within `synchrony_bound`
 //! - **Public identities**: Network observers can see who is communicating
-//! - **No PKI**: Unlike TLS, no certificate authority protection
 //!
 //! # Design
 //!
